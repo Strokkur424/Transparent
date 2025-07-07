@@ -7,3 +7,15 @@ build
 # Ignore IntellilJ files
 .idea
 *.iml
+
+# Ignore folia fork folders
+/run
+
+/visualized-folia-server/build.gradle.kts
+/visualized-folia-server/src/minecraft
+/paper-server
+/folia-server
+/visualized-folia-api/build.gradle.kts
+/paper-api
+/paper-api-generator
+/folia-api
