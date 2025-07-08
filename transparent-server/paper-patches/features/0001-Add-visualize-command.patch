@@ -4,6 +4,22 @@ Date: Tue, 8 Jul 2025 12:39:27 +0200
 Subject: [PATCH] Add visualize command
 
 
+diff --git a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
+index 10a0be7a4db1a51579d113d279af7a9effe7f438..1e2156a01dfa3399128d2b98d7e5873f8b3d5da5 100644
+--- a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
++++ b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
+@@ -42,9 +42,9 @@ public record ServerBuildInfoImpl(
+         this(
+             getManifestAttribute(manifest, ATTRIBUTE_BRAND_ID)
+                 .map(Key::key)
+-                .orElse(Key.key("papermc", "folia")), // Folia
++                .orElse(Key.key("strokkur", "transparent")), // Transparent
+             getManifestAttribute(manifest, ATTRIBUTE_BRAND_NAME)
+-                .orElse("Folia"), // Folia
++                .orElse("Transparent"), // Transparent
+             SharedConstants.getCurrentVersion().id(),
+             SharedConstants.getCurrentVersion().name(),
+             getManifestAttribute(manifest, ATTRIBUTE_BUILD_NUMBER)
 diff --git a/src/main/java/io/papermc/paper/command/PaperCommands.java b/src/main/java/io/papermc/paper/command/PaperCommands.java
 index 3deca0b4e95609dc95376a86b5cbd525729a1031..634cb0ffdf83a091fe48a230ac5efb64d5089451 100644
 --- a/src/main/java/io/papermc/paper/command/PaperCommands.java
@@ -74,7 +90,7 @@ index 0000000000000000000000000000000000000000..dbe4d7756ce3f3e9e0bfcdfac48b531d
 +}
 \ No newline at end of file
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index ecab0322ae03b7a3133eae192076aaf463237cd6..3b15ac226181cace62f17362fb5ccf3a70a6d460 100644
+index ecab0322ae03b7a3133eae192076aaf463237cd6..36169122abeda5424c969cfb0d1eae526118fdd5 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -116,6 +116,7 @@ import net.minecraft.world.level.storage.PlayerDataStorage;
@@ -89,7 +105,7 @@ index ecab0322ae03b7a3133eae192076aaf463237cd6..3b15ac226181cace62f17362fb5ccf3a
          this.pluginManager.paperPluginManager = this.paperPluginManager;
           // Paper end
  
-+        VisualizeCommand.registerPermissions(); // Transparent - register /visualise command permissions.
++        VisualizeCommand.registerPermissions(); // Transparent - register /visualize command permissions.
 +
          CraftRegistry.setMinecraftRegistry(console.registryAccess());
  
