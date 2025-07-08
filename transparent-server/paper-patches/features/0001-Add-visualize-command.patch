@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Strokkur424 <strokkur.24@gmail.com>
+Date: Tue, 8 Jul 2025 12:39:27 +0200
+Subject: [PATCH] Add visualize command
+
+
+diff --git a/src/main/java/io/papermc/paper/command/PaperCommands.java b/src/main/java/io/papermc/paper/command/PaperCommands.java
+index 3deca0b4e95609dc95376a86b5cbd525729a1031..634cb0ffdf83a091fe48a230ac5efb64d5089451 100644
+--- a/src/main/java/io/papermc/paper/command/PaperCommands.java
++++ b/src/main/java/io/papermc/paper/command/PaperCommands.java
+@@ -4,6 +4,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
+ import io.papermc.paper.command.brigadier.CommandRegistrationFlag;
+ import io.papermc.paper.command.brigadier.CommandSourceStack;
+ import net.minecraft.server.MinecraftServer;
++import net.strokkur.transparent.commands.VisualizeCommand;
+ import org.bukkit.command.Command;
+ 
+ import java.util.HashMap;
+@@ -36,6 +37,7 @@ public final class PaperCommands {
+         // Paper commands go here
+         registerInternalCommand(PaperVersionCommand.create(), "bukkit", PaperVersionCommand.DESCRIPTION, List.of("ver", "about"), Set.of());
+         registerInternalCommand(PaperPluginsCommand.create(), "bukkit", PaperPluginsCommand.DESCRIPTION, List.of("pl"), Set.of());
++        registerInternalCommand(VisualizeCommand.create(), "transparent", VisualizeCommand.DESCRIPTION, List.of(), Set.of()); // Transparent - Register /visualize command
+     }
+ 
+     private static void registerInternalCommand(final LiteralCommandNode<CommandSourceStack> node, final String namespace, final String description, final List<String> aliases, final Set<CommandRegistrationFlag> flags) {
+diff --git a/src/main/java/net/strokkur/transparent/commands/VisualizeCommand.java b/src/main/java/net/strokkur/transparent/commands/VisualizeCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..dbe4d7756ce3f3e9e0bfcdfac48b531d7096b82a
+--- /dev/null
++++ b/src/main/java/net/strokkur/transparent/commands/VisualizeCommand.java
+@@ -0,0 +1,42 @@
++package net.strokkur.transparent.commands;
++
++import com.mojang.brigadier.tree.LiteralCommandNode;
++import io.papermc.paper.command.brigadier.CommandSourceStack;
++import io.papermc.paper.command.brigadier.Commands;
++import org.bukkit.Bukkit;
++import org.bukkit.permissions.Permission;
++import org.bukkit.permissions.PermissionDefault;
++import org.bukkit.plugin.PluginManager;
++
++import java.util.Set;
++
++public class VisualizeCommand {
++
++    public static final String PERMISSION = "transparent.command.visualize";
++    public static final String DESCRIPTION = "Utility command for managing the visual rendering of regions.";
++
++    public static void registerPermissions() {
++        final PluginManager pluginManager = Bukkit.getServer().getPluginManager();
++
++        // The root command will require OP so no players have access to it
++        pluginManager.addPermission(new Permission(PERMISSION, PermissionDefault.OP));
++
++        // The subcommands' permissions will be TRUE by default, so a server owner doesn't have to grant any additional
++        // permissions for the full command, but can limit subcommands using a permission plugin.
++        Set<String> permissions = Set.of(
++
++        );
++
++        // Register all permissions
++        for (String perm : permissions) {
++            pluginManager.addPermission(new Permission(perm, PermissionDefault.TRUE));
++        }
++    }
++
++    public static LiteralCommandNode<CommandSourceStack> create() {
++        return Commands.literal("visualize")
++            .requires(stack -> stack.getSender().hasPermission(PERMISSION))
++
++            .build();
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index ecab0322ae03b7a3133eae192076aaf463237cd6..1041852ccf40e40a4cab85c282f2d1cc1fd3147f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -116,6 +115,7 @@ import net.minecraft.world.level.storage.PlayerDataStorage;
+ import net.minecraft.world.level.storage.PrimaryLevelData;
+ import net.minecraft.world.level.validation.ContentValidationException;
+ import net.minecraft.world.phys.Vec3;
++import net.strokkur.transparent.commands.VisualizeCommand;
+ import org.bukkit.BanList;
+ import org.bukkit.Bukkit;
+ import org.bukkit.GameMode;
+@@ -429,6 +428,8 @@ public final class CraftServer implements Server {
+         this.pluginManager.paperPluginManager = this.paperPluginManager;
+          // Paper end
+ 
++        VisualizeCommand.registerPermissions(); // Transparent - register /visualise command permissions.
++
+         CraftRegistry.setMinecraftRegistry(console.registryAccess());
+ 
+         if (!Main.useConsole) {
