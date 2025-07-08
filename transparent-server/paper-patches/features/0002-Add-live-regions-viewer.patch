@@ -1,0 +1,252 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Strokkur424 <strokkur.24@gmail.com>
+Date: Tue, 8 Jul 2025 15:36:18 +0200
+Subject: [PATCH] Add live regions viewer
+
+
+diff --git a/src/main/java/net/strokkur/transparent/commands/VisualizeCommand.java b/src/main/java/net/strokkur/transparent/commands/VisualizeCommand.java
+index dbe4d7756ce3f3e9e0bfcdfac48b531d7096b82a..ebe03d8bd98ce2a42cafe623f9f2f7c898215419 100644
+--- a/src/main/java/net/strokkur/transparent/commands/VisualizeCommand.java
++++ b/src/main/java/net/strokkur/transparent/commands/VisualizeCommand.java
+@@ -1,8 +1,13 @@
+ package net.strokkur.transparent.commands;
+ 
++import com.mojang.brigadier.Command;
++import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+ import com.mojang.brigadier.tree.LiteralCommandNode;
+ import io.papermc.paper.command.brigadier.CommandSourceStack;
+ import io.papermc.paper.command.brigadier.Commands;
++import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
++import net.minecraft.server.MinecraftServer;
++import net.strokkur.transparent.ui.LiveRegionsViewer;
+ import org.bukkit.Bukkit;
+ import org.bukkit.permissions.Permission;
+ import org.bukkit.permissions.PermissionDefault;
+@@ -24,7 +29,7 @@ public class VisualizeCommand {
+         // The subcommands' permissions will be TRUE by default, so a server owner doesn't have to grant any additional
+         // permissions for the full command, but can limit subcommands using a permission plugin.
+         Set<String> permissions = Set.of(
+-
++            PERMISSION + ".viewer"
+         );
+ 
+         // Register all permissions
+@@ -37,6 +42,42 @@ public class VisualizeCommand {
+         return Commands.literal("visualize")
+             .requires(stack -> stack.getSender().hasPermission(PERMISSION))
+ 
++            .then(createViewer())
++
+             .build();
+     }
++
++    private static LiteralArgumentBuilder<CommandSourceStack> createViewer() {
++        return Commands.literal("viewer")
++            .requires(stack -> stack.getSender().hasPermission(PERMISSION + ".viewer"))
++
++            .then(Commands.literal("start")
++                .requires(stack -> MinecraftServer.getServer().liveRegionsViewer == null)
++                .executes(ctx -> {
++                    try {
++                        new LiveRegionsViewer();
++                        ctx.getSource().getSender().sendRichMessage("<green>Successfully started live regions viewer.");
++                    } catch (RuntimeException ex) {
++                        ctx.getSource().getSender().sendRichMessage("<red><exception>",
++                            Placeholder.unparsed("exception", ex.getMessage())
++                        );
++                    }
++                    return Command.SINGLE_SUCCESS;
++                })
++            )
++
++            .then(Commands.literal("stop")
++                .requires(stack -> MinecraftServer.getServer().liveRegionsViewer != null)
++                .executes(ctx -> {
++                    LiveRegionsViewer viewer = MinecraftServer.getServer().liveRegionsViewer;
++                    if (viewer == null) {
++                        ctx.getSource().getSender().sendRichMessage("<red>The live regions viewer is not started.");
++                    } else {
++                        viewer.close();
++                        ctx.getSource().getSender().sendRichMessage("<green>Successfully stopped the live regions viewer.");
++                    }
++                    return Command.SINGLE_SUCCESS;
++                })
++            );
++    }
+ }
+\ No newline at end of file
+diff --git a/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewer.java b/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2eac8babd398bf3eec308e114c74cb27cd24bdf4
+--- /dev/null
++++ b/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewer.java
+@@ -0,0 +1,76 @@
++package net.strokkur.transparent.ui;
++
++import com.mojang.logging.LogUtils;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.Bukkit;
++import org.bukkit.entity.Player;
++import org.slf4j.Logger;
++
++import javax.swing.JFrame;
++import java.awt.GraphicsEnvironment;
++import java.awt.HeadlessException;
++import java.awt.event.WindowAdapter;
++import java.awt.event.WindowEvent;
++
++public class LiveRegionsViewer {
++
++    private static final Logger LOGGER = LogUtils.getLogger();
++
++    private final JFrame frame;
++    private final LiveRegionsViewerPanel panel;
++
++    private boolean isClosed = false;
++
++    public LiveRegionsViewer() throws HeadlessException {
++        if (GraphicsEnvironment.isHeadless()) {
++            HeadlessException exception = new HeadlessException("Your environment does not support creating windows frames.");
++            LOGGER.info("Failed to create live regions viewer: ", exception);
++            throw exception;
++        }
++
++        if (MinecraftServer.getServer().liveRegionsViewer != null) {
++            IllegalStateException exception = new IllegalStateException("The live regions viewer is already running. Cannot create another one.");
++            LOGGER.info("Failed to create live regions viewer: ", exception);
++            throw exception;
++        }
++        MinecraftServer.getServer().liveRegionsViewer = this;
++        Bukkit.getOnlinePlayers().forEach(Player::updateCommands); // Update /visualize viewer
++
++        this.frame = new JFrame("Live Regions Viewer");
++        this.frame.setResizable(true);
++        this.frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
++
++        this.panel = new LiveRegionsViewerPanel(this);
++        this.frame.add(this.panel);
++        this.frame.pack();
++
++        this.frame.addPropertyChangeListener(evt -> LOGGER.info("Property change event: {}", evt.getPropertyName()));
++        this.frame.addWindowListener(new WindowAdapter() {
++            @Override
++            public void windowClosing(WindowEvent e) {
++                close();
++            }
++        });
++
++        this.frame.setVisible(true);
++    }
++
++    public void redraw() {
++        this.frame.repaint();
++    }
++
++    public boolean isClosed() {
++        return this.isClosed;
++    }
++
++    public synchronized void close() {
++        if (this.isClosed) {
++            return;
++        }
++
++        MinecraftServer.getServer().liveRegionsViewer = null;
++        Bukkit.getOnlinePlayers().forEach(Player::updateCommands); // Update /visualize viewer
++        this.frame.dispose();
++        this.isClosed = true;
++    }
++}
+diff --git a/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewerPanel.java b/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewerPanel.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1785b9eb96aa9d18fcb68bb0a1beb95ef4c838e5
+--- /dev/null
++++ b/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewerPanel.java
+@@ -0,0 +1,65 @@
++package net.strokkur.transparent.ui;
++
++import com.mojang.logging.LogUtils;
++import org.slf4j.Logger;
++
++import javax.swing.JPanel;
++import java.awt.Color;
++import java.awt.Dimension;
++import java.awt.Graphics;
++import java.awt.event.MouseAdapter;
++import java.awt.event.MouseEvent;
++
++public class LiveRegionsViewerPanel extends JPanel {
++
++    private static final Logger LOGGER = LogUtils.getLogger();
++
++    private int mouseX = Integer.MIN_VALUE;
++    private int mouseY = Integer.MIN_VALUE;
++
++    public LiveRegionsViewerPanel(LiveRegionsViewer viewer) {
++        super();
++
++        addMouseMotionListener(new MouseAdapter() {
++            @Override
++            public void mouseExited(MouseEvent e) {
++                mouseX = Integer.MIN_VALUE;
++                mouseY = Integer.MIN_VALUE;
++                viewer.redraw();
++            }
++
++            @Override
++            public void mouseEntered(MouseEvent e) {
++                mouseX = e.getX();
++                mouseY = e.getY();
++                viewer.redraw();
++            }
++
++            @Override
++            public void mouseMoved(MouseEvent e) {
++                mouseX = e.getX();
++                mouseY = e.getY();
++                viewer.redraw();
++            }
++        });
++    }
++
++    @Override
++    public Dimension getPreferredSize() {
++        return new Dimension(1280, 720);
++    }
++
++    private boolean isMouseOnScreen() {
++        return mouseX != Integer.MIN_VALUE && mouseY != Integer.MIN_VALUE;
++    }
++
++    @Override
++    protected void paintComponent(Graphics g) {
++        super.paintComponent(g);
++
++        if (isMouseOnScreen()) {
++            g.setColor(Color.GREEN);
++            g.drawString("This is text", mouseX, mouseY);
++        }
++    }
++}
+diff --git a/src/main/resources/log4j2.xml b/src/main/resources/log4j2.xml
+index d2a75850af9c6ad2aca66a5f994f1b587d73eac4..7c3468c6d810b8a4ba5a6776bbafd3ff6dcde8da 100644
+--- a/src/main/resources/log4j2.xml
++++ b/src/main/resources/log4j2.xml
+@@ -9,7 +9,7 @@
+                 <LoggerNamePatternSelector defaultPattern="%highlightError{[%d{HH:mm:ss} %level]: [%logger] %msg%n%xEx{full}}">
+                     <!-- Log root, Minecraft, Mojang and Bukkit loggers without prefix -->
+                     <!-- Disable prefix for various plugins that bypass the plugin logger -->
+-                    <PatternMatch key=",net.minecraft.,Minecraft,com.mojang.,com.sk89q.,ru.tehkode.,Minecraft.AWE"
++                    <PatternMatch key=",net.minecraft.,Minecraft,com.mojang.,com.sk89q.,ru.tehkode.,Minecraft.AWE,net.strokkur.transparent.ui."
+                                   pattern="%highlightError{[%d{HH:mm:ss} %level]: %msg%n%xEx{full}}" />
+                 </LoggerNamePatternSelector>
+             </PatternLayout>
+@@ -19,7 +19,7 @@
+                 <LoggerNamePatternSelector defaultPattern="[%d{HH:mm:ss}] [%t/%level]: [%logger] %stripAnsi{%msg}%n%xEx{full}">
+                     <!-- Log root, Minecraft, Mojang and Bukkit loggers without prefix -->
+                     <!-- Disable prefix for various plugins that bypass the plugin logger -->
+-                    <PatternMatch key=",net.minecraft.,Minecraft,com.mojang.,com.sk89q.,ru.tehkode.,Minecraft.AWE"
++                    <PatternMatch key=",net.minecraft.,Minecraft,com.mojang.,com.sk89q.,ru.tehkode.,Minecraft.AWE,net.strokkur.transparent.ui."
+                                   pattern="[%d{HH:mm:ss}] [%t/%level]: %stripAnsi{%msg}%n%xEx{full}" />
+                 </LoggerNamePatternSelector>
+             </PatternLayout>

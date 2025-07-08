@@ -74,10 +74,10 @@ index 0000000000000000000000000000000000000000..dbe4d7756ce3f3e9e0bfcdfac48b531d
 +}
 \ No newline at end of file
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index ecab0322ae03b7a3133eae192076aaf463237cd6..1041852ccf40e40a4cab85c282f2d1cc1fd3147f 100644
+index ecab0322ae03b7a3133eae192076aaf463237cd6..3b15ac226181cace62f17362fb5ccf3a70a6d460 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -116,6 +115,7 @@ import net.minecraft.world.level.storage.PlayerDataStorage;
+@@ -116,6 +116,7 @@ import net.minecraft.world.level.storage.PlayerDataStorage;
  import net.minecraft.world.level.storage.PrimaryLevelData;
  import net.minecraft.world.level.validation.ContentValidationException;
  import net.minecraft.world.phys.Vec3;
@@ -85,7 +85,7 @@ index ecab0322ae03b7a3133eae192076aaf463237cd6..1041852ccf40e40a4cab85c282f2d1cc
  import org.bukkit.BanList;
  import org.bukkit.Bukkit;
  import org.bukkit.GameMode;
-@@ -429,6 +428,8 @@ public final class CraftServer implements Server {
+@@ -429,6 +430,8 @@ public final class CraftServer implements Server {
          this.pluginManager.paperPluginManager = this.paperPluginManager;
           // Paper end
  

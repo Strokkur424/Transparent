@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Strokkur424 <strokkur.24@gmail.com>
+Date: Tue, 8 Jul 2025 15:36:18 +0200
+Subject: [PATCH] Add live regions viewer
+
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 8e69876debfdbab3965fb93fe79d1125f4f21636..ee34b77cf9554b758e1271a2ce3c980b05ada272 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -302,7 +302,9 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     public boolean isIteratingOverLevels = false; // Paper - Throw exception on world create while being ticked
+     private final Set<String> pluginsBlockingSleep = new java.util.HashSet<>(); // Paper - API to allow/disallow tick sleeping
+     public static final long SERVER_INIT = System.nanoTime(); // Paper - Lag compensation
+-
++    // Transparent start - add live regions viewer
++    public volatile @Nullable net.strokkur.transparent.ui.LiveRegionsViewer liveRegionsViewer = null;
++    // Transparent end
+     // Folia start - regionised ticking
+     public final io.papermc.paper.threadedregions.RegionizedServer regionizedServer = new io.papermc.paper.threadedregions.RegionizedServer();
+ 
