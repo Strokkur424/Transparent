@@ -11,11 +11,11 @@ build
 # Ignore folia fork folders
 /run
 
-/visualized-folia-server/build.gradle.kts
-/visualized-folia-server/src/minecraft
+/transparent-server/build.gradle.kts
+/transparent-server/src/minecraft
 /paper-server
 /folia-server
-/visualized-folia-api/build.gradle.kts
+/transparent-api/build.gradle.kts
 /paper-api
 /paper-api-generator
 /folia-api

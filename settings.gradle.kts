@@ -10,7 +10,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
 }
 
-rootProject.name = "visualized-folia"
+rootProject.name = "Transparent"
 
-include("visualized-folia-server")
-include("visualized-folia-api")
+include("transparent-server")
+include("transparent-api")
