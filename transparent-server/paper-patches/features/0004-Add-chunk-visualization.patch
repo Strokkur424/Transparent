@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Strokkur424 <strokkur.24@gmail.com>
+Date: Tue, 8 Jul 2025 22:21:20 +0200
+Subject: [PATCH] Add chunk visualization
+
+
+diff --git a/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewerPanel.java b/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewerPanel.java
+index 9d631981f6ab0bc1e073eee912f9b4105db39a62..de3d0ffa08d1af8bb7f30fd235594a09da2a34b0 100644
+--- a/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewerPanel.java
++++ b/src/main/java/net/strokkur/transparent/ui/LiveRegionsViewerPanel.java
+@@ -1,6 +1,13 @@
+ package net.strokkur.transparent.ui;
+ 
+ import com.mojang.logging.LogUtils;
++import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
++import it.unimi.dsi.fastutil.longs.LongSet;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ColumnPos;
++import net.minecraft.server.level.ServerLevel;
++import org.bukkit.Chunk;
++import org.bukkit.World;
+ import org.slf4j.Logger;
+ 
+ import javax.swing.JPanel;
+@@ -8,6 +15,9 @@ import java.awt.Color;
+ import java.awt.Dimension;
+ import java.awt.FontMetrics;
+ import java.awt.Graphics;
++import java.time.Duration;
++import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.List;
+ 
+ public class LiveRegionsViewerPanel extends JPanel {
+@@ -15,11 +25,14 @@ public class LiveRegionsViewerPanel extends JPanel {
+     private static final Logger LOGGER = LogUtils.getLogger();
+ 
+     private final LiveRegionsViewer viewer;
++    private final RegionChunkRetrieverThread regionChunkRetrieverThread;
+ 
+     public LiveRegionsViewerPanel(LiveRegionsViewer viewer) {
+         super();
+         setBackground(Color.DARK_GRAY);
+         this.viewer = viewer;
++        this.regionChunkRetrieverThread = new RegionChunkRetrieverThread();
++        this.regionChunkRetrieverThread.start();
+     }
+ 
+     @Override
+@@ -31,14 +44,34 @@ public class LiveRegionsViewerPanel extends JPanel {
+     protected void paintComponent(Graphics g) {
+         super.paintComponent(g);
+ 
++        ServerLevel level = MinecraftServer.getServer().overworld();
++        World world = level.getWorld();
++
++        // Paint regions
++        List<RegionInfo> regions = new ArrayList<>(regionChunkRetrieverThread.regions);
++        for (RegionInfo info : regions) {
++            for (long key : info.chunkKeys) {
++                Chunk chunk = world.getChunkAt(key, false);
++                ColumnPos pos = viewer.toPixels(chunk.getX() * 16, chunk.getZ() * 16);
++
++
++                drawTransparentRect(g, info.color(), pos.x(), pos.z(), (int) (16 / viewer.getScale()), (int) (16 / viewer.getScale()));
++            }
++        }
++
++        // Paint players
+         viewer.updatePlayerData();
+         viewer.getPlayerData().forEach(data -> {
+-            int scale = Math.clamp((int) (32 * viewer.getScale()), 16, 64);
++            if (data.player().getWorld() != world) {
++                return;
++            }
++
++            int scale = Math.clamp((int) (32 / viewer.getScale()), 16, 64);
+             g.drawImage(data.skullTexture(), data.originX(), data.originY(), scale, scale, null);
+         });
+ 
+         //noinspection ConstantValue
+-        if (true) {
++        if (false) {
+             record StringHeightWidth(String text, int width) {}
+ 
+             List<String> debugStrings = List.of(
+@@ -86,4 +119,38 @@ public class LiveRegionsViewerPanel extends JPanel {
+         g.setColor(color);
+         g.drawRect(x, y, width, height);
+     }
++
++    private class RegionChunkRetrieverThread extends Thread {
++
++        private final List<RegionInfo> regions = Collections.synchronizedList(new ArrayList<>(25));
++
++        public RegionChunkRetrieverThread() {
++            super("RegionChunkRetrieverThread");
++        }
++
++        @Override
++        public void run() {
++            try {
++                while (!viewer.isClosed()) {
++                    ServerLevel level = MinecraftServer.getServer().overworld();
++
++                    final List<RegionInfo> info = new ArrayList<>(25);
++                    level.regioniser.computeForAllRegions(region -> info.add(new RegionInfo(
++                        new Color(region.uniqueColor),
++                        new LongOpenHashSet(region.getOwnedChunks())
++                    )));
++
++                    regions.clear();
++                    regions.addAll(info);
++
++                    viewer.redraw();
++                    Thread.sleep(Duration.ofMillis(100));
++                }
++            } catch (Throwable throwable) {
++                LOGGER.error("A fatal exception occurred during execution of {}", this.getName(), throwable);
++            }
++        }
++    }
++
++    private record RegionInfo(Color color, LongSet chunkKeys) {}
+ }
